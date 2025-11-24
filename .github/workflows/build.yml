@@ -1,37 +1,55 @@
-name: Run Unit Tests
+name: Run Unit Tests and SonarCloud Analysis
 
 on:
   push:
   pull_request:
 
 jobs:
-  test:
+  test-and-sonar:
     runs-on: ubuntu-latest
 
     steps:
+      # 1️⃣ Checkout code
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # 2️⃣ Set up Python
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.10"
 
+      # 3️⃣ Install dependencies
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install httpx pytest-cov
+          pip install httpx pytest pytest-cov
 
-      - name: Run tests
+      # 4️⃣ Run tests with coverage (HTML + XML for Sonar)
+      - name: Run tests and generate coverage
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           pytest --maxfail=1 --disable-warnings --cov=src \
-             --cov-report=term-missing \
-             --cov-report=html \
-             --cov-report=xml:coverage.xml
+                 --cov-report=term-missing \
+                 --cov-report=html \
+                 --cov-report=xml:coverage.xml
 
-      - name: Upload coverage report
+      # 5️⃣ Upload HTML coverage as artifact (optional)
+      - name: Upload coverage HTML report
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: htmlcov
+
+      # 6️⃣ Run SonarCloud analysis
+      - name: Run SonarCloud Scanner
+        uses: sonarsource/sonarcloud-github-action@v2
+        with:
+          projectBaseDir: .
+          args: >
+            -Dsonar.projectKey=playstationflatsmoke_Calc-Python
+            -Dsonar.organization=playstationflatsmoke
+            -Dsonar.sources=src
+            -Dsonar.tests=tests
+            -Dsonar.language=py
+            -Dsonar.python.coverage.reportPaths=coverage.xml
