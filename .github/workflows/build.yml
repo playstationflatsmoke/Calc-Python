@@ -1,31 +1,39 @@
-name: Run Unit Tests, SonarCloud Analysis, and ZAP Scan
+name: Tests, SonarCloud, and ZAP Scan
 
 on:
   push:
   pull_request:
 
 jobs:
-  test-and-security:
+  ci-security:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout code
+      ##############################################
+      # 1️⃣ CHECKOUT
+      ##############################################
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # 2️⃣ Set up Python
+      ##############################################
+      # 2️⃣ PYTHON SETUP
+      ##############################################
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.10"
 
-      # 3️⃣ Install dependencies
+      ##############################################
+      # 3️⃣ INSTALL DEPENDENCIES
+      ##############################################
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install httpx pytest pytest-cov
+          pip install pytest httpx pytest-cov uvicorn
 
-      # 4️⃣ Run tests with coverage (HTML + XML)
+      ##############################################
+      # 4️⃣ UNIT TESTS + COVERAGE (HTML+XML)
+      ##############################################
       - name: Run tests and generate coverage
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)
@@ -34,29 +42,59 @@ jobs:
                  --cov-report=html \
                  --cov-report=xml:coverage.xml
 
-      # 5️⃣ Upload HTML coverage report
+      ##############################################
+      # 5️⃣ UPLOAD COVERAGE ARTIFACT
+      ##############################################
       - name: Upload coverage HTML report
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: htmlcov
 
-      # 6️⃣ Run SonarCloud / SonarQube scan
+      ##############################################
+      # 6️⃣ SONARCLOUD ANALYSIS
+      ##############################################
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_SCANNER_OPTS: "-Dsonar.python.coverage.reportPaths=coverage.xml"
 
-     
-     # 8️⃣ ZAP Full Scan on localhost
+      ##############################################
+      # 7️⃣ BUILD FASTAPI DOCKER IMAGE
+      ##############################################
+      - name: Build FastAPI Docker image
+        run: docker build -t myfastapiapp .
+
+      ##############################################
+      # 8️⃣ CREATE SHARED DOCKER NETWORK
+      ##############################################
+      - name: Create Docker network
+        run: docker network create zapnet
+
+      ##############################################
+      # 9️⃣ RUN FASTAPI IN DOCKER (ACCESSIBLE TO ZAP)
+      ##############################################
+      - name: Run FastAPI container
+        run: |
+          docker run -d \
+            --name fastapi \
+            --network zapnet \
+            -p 8000:8000 \
+            myfastapiapp
+          sleep 5
+
+      ##############################################
+      # 🔟 ZAP FULL SCAN AGAINST YOUR API
+      ##############################################
       - name: ZAP Full Scan
         uses: zaproxy/action-full-scan@v0.13.0
         with:
           token: ${{ github.token }}
-          target: http://127.0.0.1:8000
+          target: http://fastapi:8000
           docker_name: ghcr.io/zaproxy/zaproxy:stable
-          issue_title: "ZAP Full Scan Report"
+          network: zapnet
           fail_action: true
           allow_issue_writing: true
+          issue_title: "ZAP Full Scan Report"
           artifact_name: zap_scan
