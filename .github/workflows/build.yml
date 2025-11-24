@@ -1,11 +1,11 @@
-name: Run Unit Tests and SonarCloud Analysis
+name: Run Unit Tests, SonarCloud Analysis, and ZAP Scan
 
 on:
   push:
   pull_request:
 
 jobs:
-  test-and-sonar:
+  test-and-security:
     runs-on: ubuntu-latest
 
     steps:
@@ -25,7 +25,7 @@ jobs:
           pip install -r requirements.txt
           pip install httpx pytest pytest-cov
 
-      # 4️⃣ Run tests with coverage (HTML + XML for Sonar)
+      # 4️⃣ Run tests with coverage (HTML + XML)
       - name: Run tests and generate coverage
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)
@@ -34,16 +34,30 @@ jobs:
                  --cov-report=html \
                  --cov-report=xml:coverage.xml
 
-      # 5️⃣ Upload HTML coverage as artifact (optional)
+      # 5️⃣ Upload HTML coverage report
       - name: Upload coverage HTML report
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: htmlcov
 
-      # 6️⃣ Run SonarCloud analysis
+      # 6️⃣ Run SonarCloud / SonarQube scan
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_SCANNER_OPTS: "-Dsonar.python.coverage.reportPaths=coverage.xml"
+
+      # 7️⃣ ZAP Full Scan
+      - name: ZAP Full Scan
+        uses: zaproxy/action-full-scan@v0.13.0
+        with:
+          token: ${{ github.token }}             # optional, default
+          target: https://example.com           # your target URL
+          rules_file_name: zap_rules.yaml       # optional, relative path if you have custom rules
+          docker_name: ghcr.io/zaproxy/zaproxy:stable
+          cmd_options: ""                       # optional additional CLI options
+          issue_title: "ZAP Full Scan Report"
+          fail_action: true                     # fail if ZAP finds alerts
+          allow_issue_writing: true             # create GitHub issues for alerts
+          artifact_name: zap_scan               # artifact name for reports
