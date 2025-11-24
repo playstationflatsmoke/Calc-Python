@@ -97,4 +97,5 @@ jobs:
           fail_action: true
           allow_issue_writing: true
           issue_title: "ZAP Full Scan Report"
-          artifact_name: zap_scan
+          upload_artifact: true          # REQUIRED to save the report
+          artifact_name: zap_scan        # Name of the artifact folder
