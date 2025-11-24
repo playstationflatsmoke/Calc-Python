@@ -49,7 +49,7 @@ jobs:
           SONAR_SCANNER_OPTS: "-Dsonar.python.coverage.reportPaths=coverage.xml"
 
      
-      # 8️⃣ ZAP Full Scan on localhost
+     # 8️⃣ ZAP Full Scan on localhost
       - name: ZAP Full Scan
         uses: zaproxy/action-full-scan@v0.13.0
         with:
