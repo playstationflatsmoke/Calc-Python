@@ -42,14 +42,8 @@ jobs:
           path: htmlcov
 
       # 6️⃣ Run SonarCloud analysis
-      - name: Run SonarCloud Scanner
-        uses: sonarsource/sonarcloud-github-action@v2
-        with:
-          projectBaseDir: .
-          args: >
-            -Dsonar.projectKey=playstationflatsmoke_Calc-Python
-            -Dsonar.organization=playstationflatsmoke
-            -Dsonar.sources=src
-            -Dsonar.tests=tests
-            -Dsonar.language=py
-            -Dsonar.python.coverage.reportPaths=coverage.xml
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_SCANNER_OPTS: "-Dsonar.python.coverage.reportPaths=coverage/coverage.xml"
