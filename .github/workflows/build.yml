@@ -70,7 +70,7 @@ jobs:
       # 8️⃣ CREATE SHARED DOCKER NETWORK
       ##############################################
       - name: Create Docker network
-        run: docker network create zapnet
+        run: docker network create zapnet || true
 
       ##############################################
       # 9️⃣ RUN FASTAPI IN DOCKER (ACCESSIBLE TO ZAP)
@@ -82,20 +82,21 @@ jobs:
             --network zapnet \
             -p 8000:8000 \
             myfastapiapp
-          sleep 5
+          echo "Waiting for FastAPI to start..."
+          sleep 15
 
       ##############################################
       # 🔟 ZAP FULL SCAN AGAINST YOUR API
       ##############################################
       - name: ZAP Full Scan
         uses: zaproxy/action-full-scan@v0.13.0
+        env:
+          DOCKER_NETWORK: zapnet
         with:
           token: ${{ github.token }}
           target: http://fastapi:8000
           docker_name: ghcr.io/zaproxy/zaproxy:stable
-          network: zapnet
           fail_action: true
           allow_issue_writing: true
           issue_title: "ZAP Full Scan Report"
-          upload_artifact: true          # REQUIRED to save the report
-          artifact_name: zap_scan        # Name of the artifact folder
+          artifact_name: zap_scan
